@@ -11,9 +11,9 @@ def main():
 	#TODO:fix this
 	username = raw_input("Username: ")
 	password = getpass.getpass("Password: ")
+	auth = HTTPBasicAuth(username, password)
 
 	r = requests.get(baseURL, auth=auth)
-
 	soup = BeautifulSoup(r.text)
 
 	keyt = soup.find(name="input", attrs={'name': 'keyt'})['value']
@@ -50,11 +50,31 @@ def main():
 		print 'Please select the number associated with the assignment'
 		selected_key = raw_input()
 
-	#go to that timetable page 
+	#go to selected handin page
 	timetableURL = handinURLs[handinURLs.keys()[int(selected_key)]]
 	r = requests.get(baseURL + timetableURL, auth=auth)
 
-	print r.url
+	#generate payload
+	#TODO: fix naming 
+	#TODO: clean up code
+	soup = BeautifulSoup(r.text)
+
+	inLeader = inMember = version = key = None
+	for line in soup.find_all('td'):
+		for subline in line.find_all('input', attrs={'type':'hidden'}):
+			if 'inLeader' in subline['name']:
+				inLeader = subline['value']
+			elif 'inMember' in subline['name']:
+				inMember = subline['value']
+			elif 'version' in subline['name']:
+				version = subline['value']
+			elif 'key' in subline['name']:
+				key = subline['value']
+
+	payload = { 'inLeader':inLeader, 'inMember':inMember, 'version':version, 'key':key}
+	
+	declartionURL = soup.find('form')['action']
+	requests.post(baseURL + declartionURL, data=payload, auth=auth)
 
 def invalid_input(key, size):
 	try:
