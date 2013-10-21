@@ -8,7 +8,7 @@ def main():
 	baseURL = "https://cate.doc.ic.ac.uk/"
 
 	#username and password for auth
-	#TODO:fix this
+	#TODO:incorrect user/pass combo fail case
 	username = raw_input("Username: ")
 	password = getpass.getpass("Password: ")
 	auth = HTTPBasicAuth(username, password)
@@ -55,10 +55,22 @@ def main():
 	r = requests.get(baseURL + timetableURL, auth=auth)
 
 	#generate payload
+	#solo homework handin prodecure
 	#TODO: fix naming 
 	#TODO: clean up code
 	soup = BeautifulSoup(r.text)
+	if 'Individual' in soup.find_all('b')[24].text:
+		payload = individualDeclaration(soup)
+	else: 
+		payload = groupDeclaration(soup)
+	
+	declartionURL = soup.find('form')['action']
+	requests.post(baseURL + declartionURL, data=payload, auth=auth)
 
+	# TODO: submit declaration using subprocess python
+	# Unix Command: alias catetoken='git log | grep commit | head -n 1 | cut -c8- > cate_token.txt'
+
+def individualDeclaration(soup):
 	inLeader = inMember = version = key = None
 	for line in soup.find_all('td'):
 		for subline in line.find_all('input', attrs={'type':'hidden'}):
@@ -73,8 +85,15 @@ def main():
 
 	payload = { 'inLeader':inLeader, 'inMember':inMember, 'version':version, 'key':key}
 	
-	declartionURL = soup.find('form')['action']
-	requests.post(baseURL + declartionURL, data=payload, auth=auth)
+def groupDeclaration(soup):
+	#TODO: refactor code from ^ function
+	#submit declaration as before
+	#if group leader
+		#add group members
+		#attach work
+	#if group member
+		#sign as with indivuals
+	print 'TODO:implement'
 
 def invalid_input(key, size):
 	try:
