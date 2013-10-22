@@ -30,15 +30,14 @@ def main():
 
 	#Dict between handin page link and lab names
 	handinURLs = {}
-	#TODO:clean up code
 	for line in soup.find_all('td'):
-	    ls = line.find_all(name="a", attrs={'title':'View exercise specification'})
-	    for l in ls:
-	        title = l.string
-	        lees = line.find_all(name="a", attrs={'href':True})
-	        for lee in lees:
-	            if 'handin' in lee['href']:
-	                handinURLs[title] = lee['href']
+	    sublines = line.find_all(name="a", attrs={'title':'View exercise specification'})
+	    for subline in sublines:
+	        title = subline.string
+	        handins = line.find_all(name="a", attrs={'href':True})
+	        for handin in handins:
+	            if 'handin' in handin['href']:
+	                handinURLs[title] = handin['href']
 
 	#Ask user what homework to hand in
 	selected_key = None
@@ -55,7 +54,6 @@ def main():
 	r = requests.get(baseURL + submissionURL, auth=auth)
 
 	#Submit declaration
-	# TODO: clean up code
 	soup = BeautifulSoup(r.text)
 
 	inLeader = inMember = version = key = None
@@ -82,13 +80,14 @@ def main():
 	else:
 		file_path = str(sys.argv[1])
 
-	# TODO: autogenerate these
 	files={'file-195-none': open(file_path, 'rb')}
-	payload={'key':'2013:1:129:c2:submit:hj1612'}
 
+	submit_key = key.split(':')
+	submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
+	payload={'key':submit_key}
 	r = requests.post(baseURL + submissionURL, files=files, data=payload, auth=auth)
 
-	if r.status_code() is 200:
+	if r.status_code == 200:
 		print 'Boom! You\'re done'
 	else:
 		print 'Something went wrong, please try again or submit the old-fashioned way'
