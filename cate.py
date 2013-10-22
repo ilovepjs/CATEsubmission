@@ -1,6 +1,7 @@
 import requests
 import bs4
 import getpass
+import subprocess
 from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 
@@ -51,26 +52,27 @@ def main():
 		selected_key = raw_input()
 
 	#go to selected handin page
+	#TODO: refactor timetableURL to submissionURL
 	timetableURL = handinURLs[handinURLs.keys()[int(selected_key)]]
 	r = requests.get(baseURL + timetableURL, auth=auth)
 
-	#generate payload
-	#solo homework handin prodecure
-	#TODO: fix naming 
-	#TODO: clean up code
+	# submit declaration
+	# TODO: fix naming & clean up code
 	soup = BeautifulSoup(r.text)
-	if 'Individual' in soup.find_all('b')[24].text:
-		payload = individualDeclaration(soup)
-	else: 
-		payload = groupDeclaration(soup)
-	
-	declartionURL = soup.find('form')['action']
-	requests.post(baseURL + declartionURL, data=payload, auth=auth)
 
-	# TODO: submit declaration using subprocess python
-	# Unix Command: alias catetoken='git log | grep commit | head -n 1 | cut -c8- > cate_token.txt'
+	# handles group submissions
+	if 'Group' in soup.find_all('b')[24].text:
+		#if group exists
+		#sign decleration
+		print('You are already part of a team and your decleration has been signed')
+		#else
+		print('No team exists, would you like to form one? [Y/n]')
+		user_response = raw_input('NOTE: Doing this requires you to submit the work\n')
+		if ('Y' in user_response):
+			do = 'do stuff'
+		else:
+			exit()
 
-def individualDeclaration(soup):
 	inLeader = inMember = version = key = None
 	for line in soup.find_all('td'):
 		for subline in line.find_all('input', attrs={'type':'hidden'}):
@@ -84,6 +86,21 @@ def individualDeclaration(soup):
 				key = subline['value']
 
 	payload = { 'inLeader':inLeader, 'inMember':inMember, 'version':version, 'key':key}
+
+	# declartionURL = soup.find('form')['action']
+	# print payload
+	# print declartionURL
+	# print auth
+	# requests.post(baseURL + declartionURL, data=payload, auth=auth)
+
+	# # TODO: Add support for non-git based assignments
+	# # submit file
+	# subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt", shell=True)
+	# files={'file': open('Ex3FunctionsCodeGenerator.hs', 'rb')}
+	# payload={'key':'2013:1:129:c2:new:hj1612'}
+
+	# requests.put(baseURL + timetableURL, files=files, auth=auth)
+	# requests.post(baseURL + timetableURL, data=payload, auth=auth)
 	
 def groupDeclaration(soup):
 	#TODO: refactor code from ^ function
