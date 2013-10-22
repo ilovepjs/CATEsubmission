@@ -12,7 +12,6 @@ def main():
 	#TODO:incorrect user/pass combo fail case
 	username = raw_input("Username: ")
 	password = getpass.getpass("Password: ")
-	auth = HTTPBasicAuth(username, password)
 
 	r = requests.get(baseURL, auth=auth)
 	soup = BeautifulSoup(r.text)
@@ -64,7 +63,7 @@ def main():
 	if 'Group' in soup.find_all('b')[24].text:
 		#if group exists
 		#sign decleration
-		print('You are already part of a team and your decleration has been signed')
+		int('You are already part of a team and your decleration has been signed')
 		#else
 		print('No team exists, would you like to form one? [Y/n]')
 		user_response = raw_input('NOTE: Doing this requires you to submit the work\n')
@@ -87,20 +86,30 @@ def main():
 
 	payload = { 'inLeader':inLeader, 'inMember':inMember, 'version':version, 'key':key}
 
-	# declartionURL = soup.find('form')['action']
-	# print payload
-	# print declartionURL
-	# print auth
-	# requests.post(baseURL + declartionURL, data=payload, auth=auth)
+	declartionURL = soup.find('form')['action']
+	requests.post(baseURL + declartionURL, data=payload, auth=auth)
+	print baseURL + declartionURL
+
+# form-data; name="key" 2013:1:95:c2:updgrp:hj1612
+###############################################
+# form-data; name="sign-hj1612-1852" 310
+# form-data; name="key" 2013:1:95:c2:updgrp:hj1612
 
 	# # TODO: Add support for non-git based assignments
 	# # submit file
-	# subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt", shell=True)
-	# files={'file': open('Ex3FunctionsCodeGenerator.hs', 'rb')}
-	# payload={'key':'2013:1:129:c2:new:hj1612'}
+	subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt", shell=True)
+	files={'file-195-none': open('Ex3FunctionsCodeGenerator.hs', 'rb')}
+	print files 
+	payload={'key':'2013:1:129:c2:submit:hj1612'}
 
-	# requests.put(baseURL + timetableURL, files=files, auth=auth)
-	# requests.post(baseURL + timetableURL, data=payload, auth=auth)
+	print soup
+
+
+		# 	------WebKitFormBoundary4pbrIF33oukTMxBY
+		# Content-Disposition: form-data; name="file-195-none"; filename=""
+		# Content-Type: application/octet-stream
+
+	requests.post(baseURL + timetableURL, files=files, data=payload, auth=auth)
 	
 def groupDeclaration(soup):
 	#TODO: refactor code from ^ function
