@@ -1,4 +1,5 @@
 import requests
+import os 
 import bs4
 import getpass
 import subprocess
@@ -75,12 +76,21 @@ def main():
 	#Checks to see if file given or to generate a cate_token
 	file_path = None
 	if (len(sys.argv) == 1):
-		subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt", shell=True)
-		file_path = 'cate_token.txt'
+		if (os.path.isdir('/.git')):
+			call = subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt",
+				shell=True)
+			file_path = 'cate_token.txt'
+		else:
+			show_error('Fatal: Not a git repository (or any of the parent directories): .git')
+
 	else:
 		file_path = str(sys.argv[1])
 
-	files={'file-195-none': open(file_path, 'rb')}
+	files = None
+	try:
+		files={'file-195-none': open(file_path, 'rb')}
+	except IOError:
+		show_error('Fatal: IOError - file does not exist')
 
 	submit_key = key.split(':')
 	submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
@@ -91,6 +101,11 @@ def main():
 		print 'Boom! You\'re done'
 	else:
 		print 'Something went wrong, please try again or submit the old-fashioned way'
+
+def show_error(error):
+	print error	
+	print 'Goodbye'
+	exit()
 
 def invalid_input(key, size):
 	try:
