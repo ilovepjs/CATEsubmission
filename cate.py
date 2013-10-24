@@ -96,11 +96,14 @@ def main():
 	submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
 	payload={'key':submit_key}
 	r = requests.post(baseURL + submissionURL, files=files, data=payload, auth=auth)
+	soup = BeautifulSoup(r.text)
 
-	if r.status_code == 200:
+	if soup.find(text='NOT SUBMITTED'):
+		show_error('File failed to upload, check extension or base name')
+	elif r.status_code == 200:
 		print 'Boom! You\'re done'
 	else:
-		print 'Something went wrong, please try again or submit the old-fashioned way'
+		show_error('Something went wrong, please try again or submit the old-fashioned way')
 
 def show_error(error):
 	print error	
