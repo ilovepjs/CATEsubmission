@@ -81,7 +81,7 @@ def main():
 				shell=True)
 			file_path = 'cate_token.txt'
 		else:
-			show_error('Fatal: Not a git repository (or any of the parent directories): .git')
+			exit_message('Fatal: Not a git repository (or any of the parent directories): .git')
 
 	else:
 		file_path = str(sys.argv[1])
@@ -90,7 +90,7 @@ def main():
 	try:
 		files={'file-195-none': open(file_path, 'rb')}
 	except IOError:
-		show_error('Fatal: IOError - file does not exist')
+		exit_message('Fatal: IOError - file does not exist')
 
 	submit_key = key.split(':')
 	submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
@@ -99,14 +99,14 @@ def main():
 	soup = BeautifulSoup(r.text)
 
 	if soup.find(text='NOT SUBMITTED'):
-		show_error('File failed to upload, check extension or base name')
+		exit_message('File failed to upload, check extension or base name')
 	elif r.status_code == 200:
-		print 'Boom! You\'re done'
+		exit_message('Boom! You\'re done')
 	else:
-		show_error('Something went wrong, please try again or submit the old-fashioned way')
+		exit_message('Something went wrong, please try again or submit the old-fashioned way')
 
-def show_error(error):
-	print error	
+def exit_message(message):
+	print message
 	print 'Goodbye'
 	exit()
 
