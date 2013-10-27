@@ -96,7 +96,6 @@ def main():
 				'key':soup.find('input', attrs={'type':'hidden'})['value'],
 				soup.find('input', attrs={'type':'checkbox'})['name']:soup.find('input', attrs={'type':'checkbox'})['value']
 			}
-			print payload
 			requests.post(baseURL + submissionURL, data=payload, auth=auth)
 			exit_message('Your declaration has been submitted')
 	else:
