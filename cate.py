@@ -1,19 +1,27 @@
 import requests
+import os 
 import bs4
 import getpass
 import subprocess
+import sys
 from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 
+soup = None
+
 def main():
+	global soup
+
 	baseURL = "https://cate.doc.ic.ac.uk/"
 
-	#username and password for auth
-	#TODO:incorrect user/pass combo fail case
-	username = raw_input("Username: ")
-	password = getpass.getpass("Password: ")
+	#Username and password for auth
+	r = None
+	while r is None or r.status_code is not 200:
+		username = raw_input("Username: ")
+		password = getpass.getpass("Password: ")
+		auth = HTTPBasicAuth('hj1612', 'iloveCHOCOLATE1')
+		r = requests.get(baseURL, auth=auth)
 
-	r = requests.get(baseURL, auth=auth)
 	soup = BeautifulSoup(r.text)
 
 	keyt = soup.find(name="input", attrs={'name': 'keyt'})['value']
@@ -25,101 +33,83 @@ def main():
 
 	soup = BeautifulSoup(r.text)
 
-	#create a dict between handin page link and lab names
+	#Dict between handin page link and lab names
 	handinURLs = {}
-	#TODO:clean up code
 	for line in soup.find_all('td'):
-	    ls = line.find_all(name="a", attrs={'title':'View exercise specification'})
-	    for l in ls:
-	        title = l.string
-	        lees = line.find_all(name="a", attrs={'href':True})
-	        for lee in lees:
-	            if 'handin' in lee['href']:
-	                handinURLs[title] = lee['href']
+	    sublines = line.find_all(name="a", attrs={'title':'View exercise specification'})
+	    for subline in sublines:
+	        title = subline.string
+	        handins = line.find_all(name="a", attrs={'href':True})
+	        for handin in handins:
+	            if 'handin' in handin['href']:
+	                handinURLs[title] = handin['href']
 
-	#ask user what homework to hand in
-	location = 0
-	print 'Which [assignment] would you like to hand in?'
-	for key in handinURLs.keys():
-		print '[' + str(location) + ']\t' + key
-		location += 1
+	#Ask user what homework to hand in
+	selected_key = None
+	while selected_key is None or invalid_input(selected_key, len(handinURLs.keys())):
+		location = 0
+		print 'Which [assignment] would you like to hand in?'
+		for key in handinURLs.keys():
+			print '[' + str(location) + ']\t' + key
+			location += 1
+		selected_key = raw_input('Please select the number associated with the assignment\n')
 
-	selected_key = raw_input()
-	while invalid_input(selected_key, len(handinURLs.keys())):
-		print 'Invalid input'
-		print 'Please select the number associated with the assignment'
-		selected_key = raw_input()
-
-	#go to selected handin page
-	#TODO: refactor timetableURL to submissionURL
-	timetableURL = handinURLs[handinURLs.keys()[int(selected_key)]]
-	r = requests.get(baseURL + timetableURL, auth=auth)
-
-	# submit declaration
-	# TODO: fix naming & clean up code
+	#Handin assignment page
+	submissionURL = handinURLs[handinURLs.keys()[int(selected_key)]]
+	r = requests.get(baseURL + submissionURL, auth=auth)
 	soup = BeautifulSoup(r.text)
+	files = None
 
-	# handles group submissions
-	if 'Group' in soup.find_all('b')[24].text:
-		#if group exists
-		#sign decleration
-		int('You are already part of a team and your decleration has been signed')
-		#else
-		print('No team exists, would you like to form one? [Y/n]')
-		user_response = raw_input('NOTE: Doing this requires you to submit the work\n')
-		if ('Y' in user_response):
-			do = 'do stuff'
+	if ('Group' in r.text):
+		if ('No declaration' in r.text):
+			print 'There is currently no declaration for your group'
+			print 'NOTE: If you create one you will be responsible for submitting work'
+			user_response = raw_input('Would you like to create one? [Y/n]: ')
+			if ('Y' in user_response):
+				r = submit_declaration(baseURL, auth)
+				soup = BeautifulSoup(r.text)
+				key = soup.find_all('input', attrs={'type':'hidden', 'name':'key'})[2]['value']
+
+				print 'Please add the people in your group'
+				user_id_text = raw_input('Enter group member\'s id or DONE when finished: ')
+				while ('DONE' not in user_id_text):
+					user_id_value = None
+					for user_id in soup.find_all('option'):
+						if user_id_text in user_id['value']:
+							user_id_value = user_id['value']
+							validation = raw_input('Is ' + user_id_value + ' correct? [Y/n]: ')
+							if ('Y' in validation):
+								payload = { 'grpmember':user_id_value, 'key':key}
+								r = requests.post(baseURL + submissionURL, data=payload, auth=auth)
+								print user_id_value + ' has been added to group'
+							else:
+								print ('Invalid user id, please try again, E.G hj1612')
+							break
+					user_id_text = raw_input('Enter group member id or DONE when finished: ')
+
+				files = get_file()
+				soup = submit_file(baseURL, submissionURL, files, auth)
+			else:
+				exit_message('Please come back to sign your declaration once a group has been formed')
 		else:
-			exit()
+			exit_message('Your declaration has been submitted')
+	else:
+		r = submit_declaration(baseURL, auth)
 
-	inLeader = inMember = version = key = None
-	for line in soup.find_all('td'):
-		for subline in line.find_all('input', attrs={'type':'hidden'}):
-			if 'inLeader' in subline['name']:
-				inLeader = subline['value']
-			elif 'inMember' in subline['name']:
-				inMember = subline['value']
-			elif 'version' in subline['name']:
-				version = subline['value']
-			elif 'key' in subline['name']:
-				key = subline['value']
+		files = get_file()
+		soup = submit_file(baseURL, submissionURL, files, auth)
 
-	payload = { 'inLeader':inLeader, 'inMember':inMember, 'version':version, 'key':key}
+	if soup.find(text='NOT SUBMITTED'):
+		exit_message('File failed to upload, check extension or base name')
+	elif r.status_code == 200:
+		exit_message('Boom! You\'re done')
+	else:
+		exit_message('Something went wrong, please try again or submit the old-fashioned way')
 
-	declartionURL = soup.find('form')['action']
-	requests.post(baseURL + declartionURL, data=payload, auth=auth)
-	print baseURL + declartionURL
-
-# form-data; name="key" 2013:1:95:c2:updgrp:hj1612
-###############################################
-# form-data; name="sign-hj1612-1852" 310
-# form-data; name="key" 2013:1:95:c2:updgrp:hj1612
-
-	# # TODO: Add support for non-git based assignments
-	# # submit file
-	subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt", shell=True)
-	files={'file-195-none': open('Ex3FunctionsCodeGenerator.hs', 'rb')}
-	print files 
-	payload={'key':'2013:1:129:c2:submit:hj1612'}
-
-	print soup
-
-
-		# 	------WebKitFormBoundary4pbrIF33oukTMxBY
-		# Content-Disposition: form-data; name="file-195-none"; filename=""
-		# Content-Type: application/octet-stream
-
-	requests.post(baseURL + timetableURL, files=files, data=payload, auth=auth)
-	
-def groupDeclaration(soup):
-	#TODO: refactor code from ^ function
-	#submit declaration as before
-	#if group leader
-		#add group members
-		#attach work
-	#if group member
-		#sign as with indivuals
-	print 'TODO:implement'
+def exit_message(message):
+	print message
+	print 'Goodbye'
+	exit()
 
 def invalid_input(key, size):
 	try:
@@ -127,8 +117,50 @@ def invalid_input(key, size):
 		if selected_key >= size or selected_key < 0:
 			return True
 	except ValueError:
+			print 'Invalid input'
 			return True
 	return False
+
+def submit_file(baseURL, submissionURL, files, auth):
+	submit_key = get_value('key').split(':')
+	submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
+	payload={'key':submit_key}
+	r = requests.post(baseURL + submissionURL, files=files, data=payload, auth=auth)
+	return BeautifulSoup(r.text)
+
+def submit_declaration(baseURL, auth):
+	payload = { 
+		'inLeader':get_value('inLeader'), 
+		'inMember':get_value('inMember'), 
+		'version':get_value('version'),
+		'key':get_value('key')
+	}
+	declartionURL = soup.find('form')['action']
+	return requests.post(baseURL + declartionURL, data=payload, auth=auth)
+
+def get_value(name):
+	return soup.find('input', attrs={'name':name})['value']
+
+def get_file():
+	#Checks to see if file given or to generate a cate_token
+	file_path = None
+	if (len(sys.argv) == 1):
+		if (os.path.isdir('.git')):
+			call = subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt",
+				shell=True)
+			file_path = 'cate_token.txt'
+		else:
+			exit_message('Fatal: Not a git repository (or any of the parent directories): .git')
+	else:
+		file_path = str(sys.argv[1])
+
+	files = None
+	try:
+		files={'file-195-none': open(file_path, 'rb')}
+	except IOError:
+		exit_message('Fatal: IOError - file does not exist')
+
+	return files
 
 if __name__=="__main__":
    main()
