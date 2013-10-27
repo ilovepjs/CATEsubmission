@@ -92,6 +92,11 @@ def main():
 			else:
 				exit_message('Please come back to sign your declaration once a group has been formed')
 		else:
+			payload = {
+				'key'= soup.find('input', attrs={'type':'checkbox'})['key']
+				'name' =soup.find('input', attrs={'type':'checkbox'})['name']
+			}
+			requests.post(baseURL + submissionURL, data=payload, auth=auth)
 			exit_message('Your declaration has been submitted')
 	else:
 		r = submit_declaration(baseURL, auth)
