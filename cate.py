@@ -19,7 +19,7 @@ def main():
 	while r is None or r.status_code is not 200:
 		username = raw_input("Username: ")
 		password = getpass.getpass("Password: ")
-		auth = HTTPBasicAuth('hj1612', 'iloveCHOCOLATE1')
+		auth = HTTPBasicAuth(username, password)
 		r = requests.get(baseURL, auth=auth)
 
 	soup = BeautifulSoup(r.text)
