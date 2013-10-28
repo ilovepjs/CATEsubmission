@@ -24,13 +24,12 @@ def main():
 
 	soup = BeautifulSoup(r.text)
 
-	keyt = soup.find(name="input", attrs={'name': 'keyt'})['value']
+	keyt = get_value('keyt')
 	klass = soup.find(name="input", attrs={'checked':True, 'name': 'class'})['value']
 	period = soup.find(name="input", attrs={'checked':True, 'name': 'period'})['value']
 
 	payload = {'keyt':keyt, 'class':klass, 'period':period}
-	r = requests.get("https://cate.doc.ic.ac.uk/timetable.cgi", auth=auth, params=payload)
-
+	r = requests.get(baseURL + 'timetable.cgi', auth=auth, params=payload)
 	soup = BeautifulSoup(r.text)
 
 	#Dict between handin page link and lab names
@@ -42,7 +41,7 @@ def main():
 	        handins = line.find_all(name="a", attrs={'href':True})
 	        for handin in handins:
 	            if 'handin' in handin['href']:
-	                handinURLs[title] = handin['href']
+	                handinURLs[title] = baseURL + handin['href']
 
 	#Ask user what homework to hand in
 	selected_key = None
@@ -56,15 +55,15 @@ def main():
 
 	#Handin assignment page
 	submissionURL = handinURLs[handinURLs.keys()[int(selected_key)]]
-	r = requests.get(baseURL + submissionURL, auth=auth)
+	r = requests.get(submissionURL, auth=auth)
 	soup = BeautifulSoup(r.text)
 	files = None
 
 	if ('Group' in r.text):
 		if ('No declaration' in r.text):
-			print 'There is currently no declaration for your group'
-			print 'NOTE: If you create one you will be responsible for submitting work'
-			user_response = raw_input('Would you like to create one? [Y/n]: ')
+			print 'There is no declaration for your group'
+			print 'If you create one you will have to submit the work'
+			user_response = raw_input('Do you want to create one? [Y/n]: ')
 			if ('Y' in user_response):
 				r = submit_declaration(baseURL, auth)
 				soup = BeautifulSoup(r.text)
@@ -80,7 +79,7 @@ def main():
 							validation = raw_input('Is ' + user_id_value + ' correct? [Y/n]: ')
 							if ('Y' in validation):
 								payload = { 'grpmember':user_id_value, 'key':key}
-								r = requests.post(baseURL + submissionURL, data=payload, auth=auth)
+								r = requests.post(submissionURL, data=payload, auth=auth)
 								print user_id_value + ' has been added to group'
 							else:
 								print ('Invalid user id, please try again, E.G hj1612')
@@ -88,28 +87,29 @@ def main():
 					user_id_text = raw_input('Enter group member id or DONE when finished: ')
 
 				files = get_file()
-				soup = submit_file(baseURL, submissionURL, files, auth)
+				soup = submit_file(submissionURL, files, auth)
 			else:
-				exit_message('Please come back to sign your declaration once a group has been formed')
+				exit_message('Come back to sign the declaration once a group has been formed')
 		else:
+			user_details = soup.find('input', attrs={'type':'checkbox'})
 			payload = {
 				'key':soup.find('input', attrs={'type':'hidden'})['value'],
-				soup.find('input', attrs={'type':'checkbox'})['name']:soup.find('input', attrs={'type':'checkbox'})['value']
+				user_details['name']:user_details['value']
 			}
-			requests.post(baseURL + submissionURL, data=payload, auth=auth)
+			requests.post(submissionURL, data=payload, auth=auth)
 			exit_message('Your declaration has been submitted')
 	else:
 		r = submit_declaration(baseURL, auth)
 
 		files = get_file()
-		soup = submit_file(baseURL, submissionURL, files, auth)
+		soup = submit_file(submissionURL, files, auth)
 
 	if soup.find(text='NOT SUBMITTED'):
 		exit_message('File failed to upload, check extension or base name')
 	elif r.status_code == 200:
 		exit_message('Boom! You\'re done')
 	else:
-		exit_message('Something went wrong, please try again or submit the old-fashioned way')
+		exit_message('Something went wrong, try again or submit on CATE')
 
 def exit_message(message):
 	print message
@@ -126,11 +126,11 @@ def invalid_input(key, size):
 			return True
 	return False
 
-def submit_file(baseURL, submissionURL, files, auth):
+def submit_file(submissionURL, files, auth):
 	submit_key = get_value('key').split(':')
 	submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
 	payload={'key':submit_key}
-	r = requests.post(baseURL + submissionURL, files=files, data=payload, auth=auth)
+	r = requests.post(submissionURL, files=files, data=payload, auth=auth)
 	return BeautifulSoup(r.text)
 
 def submit_declaration(baseURL, auth):
