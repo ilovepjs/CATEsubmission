@@ -22,6 +22,29 @@ class CateSubmission:
 
 		return (timetable_key, timetable_class, timetable_period)
 
+	def get_timetable(self, timetable_key, timetable_class, timetable_period):
+        payload = {
+            'keyt':timetable_key, 
+            'class':timetable_class, 
+            'period':timetable_period
+        }
+
+        r = requests.get(baseURL + 'timetable.cgi', auth=auth, params=payload)
+        soup = BeautifulSoup(r.text)
+
+        #Dict between handin page link and lab names
+        handinURLs = {}
+        for line in soup.find_all('td'):
+            sublines = line.find_all(name="a", attrs={'title':'View exercise specification'})
+            for subline in sublines:p
+                title = subline.string
+                handins = line.find_all(name="a", attrs={'href':True})
+                for handin in handins:
+                    if 'handin' in handin['href']:
+                        handinURLs[title] = baseURL + handin['href']
+
+
+
 def main():
 
 	#Username and password for auth
@@ -30,20 +53,7 @@ def main():
 		username = raw_input("Username: ")
 		password = getpass.getpass("Password: ")
 	
-	payload = {'keyt':timetable_key, 'class':timetable_class, 'period':timetable_period}
-	r = requests.get(baseURL + 'timetable.cgi', auth=auth, params=payload)
-	soup = BeautifulSoup(r.text)
-
-	#Dict between handin page link and lab names
-	handinURLs = {}
-	for line in soup.find_all('td'):
-	    sublines = line.find_all(name="a", attrs={'title':'View exercise specification'})
-	    for subline in sublines:
-	        title = subline.string
-	        handins = line.find_all(name="a", attrs={'href':True})
-	        for handin in handins:
-	            if 'handin' in handin['href']:
-	                handinURLs[title] = baseURL + handin['href']
+	
 
 	#Ask user what homework to hand in
 	selected_key = None
