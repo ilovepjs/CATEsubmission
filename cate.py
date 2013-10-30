@@ -7,28 +7,30 @@ import sys
 from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 
-soup = None
+class CateSubmission:
+	def __init__(self, username, password):
+		self.baseURL = "https://cate.doc.ic.ac.uk/"
+		self.auth = HTTPBasicAuth(username, password)
+
+	def get_enrolled_class(self):
+		r = requests.get(baseURL, auth=auth)
+		soup = BeautifulSoup(r.text)
+
+		timetable_key = get_value_by_name(soup, 'keyt')
+		timetable_class = get_value_by_name(soup, 'class', {'checked':True})
+		timetable_period = get_value_by_name(soup, 'period', {'checked':True})
+
+		return (timetable_key, timetable_class, timetable_period)
 
 def main():
-	global soup
-
-	baseURL = "https://cate.doc.ic.ac.uk/"
 
 	#Username and password for auth
 	r = None
 	while r is None or r.status_code is not 200:
 		username = raw_input("Username: ")
 		password = getpass.getpass("Password: ")
-		auth = HTTPBasicAuth(username, password)
-		r = requests.get(baseURL, auth=auth)
-
-	soup = BeautifulSoup(r.text)
-
-	keyt = get_value('keyt')
-	klass = soup.find(name="input", attrs={'checked':True, 'name': 'class'})['value']
-	period = soup.find(name="input", attrs={'checked':True, 'name': 'period'})['value']
-
-	payload = {'keyt':keyt, 'class':klass, 'period':period}
+	
+	payload = {'keyt':timetable_key, 'class':timetable_class, 'period':timetable_period}
 	r = requests.get(baseURL + 'timetable.cgi', auth=auth, params=payload)
 	soup = BeautifulSoup(r.text)
 
@@ -135,16 +137,17 @@ def submit_file(submissionURL, files, auth):
 
 def submit_declaration(baseURL, auth):
 	payload = { 
-		'inLeader':get_value('inLeader'), 
-		'inMember':get_value('inMember'), 
-		'version':get_value('version'),
-		'key':get_value('key')
+		'inLeader':get_value_by_name('inLeader'), 
+		'inMember':get_value_by_name('inMember'), 
+		'version':get_value_by_name('version'),
+		'key':get_value_by_name('key')
 	}
 	declartionURL = soup.find('form')['action']
 	return requests.post(baseURL + declartionURL, data=payload, auth=auth)
 
-def get_value(name):
-	return soup.find('input', attrs={'name':name})['value']
+def get_value_by_name(name, extra_attrs={}):
+	attrs = {'name':name}.update(extra_attrs)
+	return soup.find('input', attrs=attrs)['value']
 
 def get_file():
 	#Checks to see if file given or to generate a cate_token
