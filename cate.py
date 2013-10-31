@@ -8,9 +8,10 @@ from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 
 class CateSubmission:
-	def __init__(self, username, password):
+	def __init__(self, username, password, file_path):
 		self.baseURL = "https://cate.doc.ic.ac.uk/"
 		self.auth = HTTPBasicAuth(username, password)
+        self.file_path = file_path
 
 	def get_enrolled_class(self):
 		r = requests.get(baseURL, auth=auth)
@@ -32,153 +33,142 @@ class CateSubmission:
         r = requests.get(baseURL + 'timetable.cgi', auth=auth, params=payload)
         soup = BeautifulSoup(r.text)
 
-        #Dict between handin page link and lab names
-        handinURLs = {}
-        for line in soup.find_all('td'):
-            sublines = line.find_all(name="a", attrs={'title':'View exercise specification'})
-            for subline in sublines:p
-                title = subline.string
-                handins = line.find_all(name="a", attrs={'href':True})
-                for handin in handins:
-                    if 'handin' in handin['href']:
-                        handinURLs[title] = baseURL + handin['href']
+        handin_urls = {}
+        handin_links = soup.find_all(href=re.compile('handins'))
+        for handin_link in handin_links:
+            handin_container = handin_link.parent
+            handin_title = handin_container.text[2:]
+
+            handin_urls[handin_title] = handin_link['href']
+
+    def get_submission_url(self, handin_urls):
+        print 'Which [assignment] would you like to hand in?'
+        for i, key in enumerate(handinURLs.keys()):
+                print '[{}]\t{}'.format(i, key)
+        
+        invalid_key_chosen = True
+        while invalid_key_chosen:
+            selected_key = raw_input('Select the number of the assignment to submit\n')
+            invalid_key_chosen = (selected_key > handinURLs.keys() or selected_key < 0)
+
+        return submission_url = handin_urls[handin_urls.keys()[int(selected_key)]]
 
 
+    def submit_assignment(self, submission_url):
+        r = requests.get(submissionURL, auth=auth)
+
+        if ('Group' in r.text):
+            submit_group_assignment(submissionURL)
+        else:
+            submit_page = submit_declaration(baseURL, auth)
+
+            files = get_file()
+            submit_file(submissionURL, files, auth, submit_page)
+
+    def submit_group_assignment(self, submission_url):
+        if ('No declaration' in r.text):
+            print 'There is no declaration for your group'
+            print 'If you create one you will have to submit the work'
+            user_response = raw_input('Do you want to create one? [Y/n]: ')
+            if ('Y' in user_response):
+                r = submit_declaration(baseURL, auth)
+                soup = BeautifulSoup(r.text)
+
+                add_members_to_group()
+                files = get_file()
+                submit_file(submissionURL, files, auth)
+            else:
+                print 'Come back to sign the declaration once a group has been formed'
+                exit()
+        else:
+            user_details = soup.find('input', attrs={'type':'checkbox'})
+            payload = {
+                'key':get_value_by_name(soup, 'key', {'type':'hidden'})
+                user_details['name']:user_details['value']
+            }
+            requests.post(submissionURL, data=payload, auth=auth)
+            print 'Your declaration has been submitted'
+            exit()
+
+    def add_members_to_group(self):
+        add_grpmember_key = soup.find_all('input', attrs={'type':'hidden', 'name':'key'})[2]['value']
+
+        print 'Add the people in your group'
+        user_id_text = raw_input('Enter group member\'s id or DONE when finished: ')
+        while ('DONE' not in user_id_text):
+            user_id_value = None
+            for user_id in soup.find_all('option'):
+                if user_id_text in user_id['value']:
+                    user_id_value = user_id['value']
+                    validation = raw_input('Is {} correct? [Y/n]: '.format(user_id_value))
+                    if ('Y' in validation):
+                        payload = { 'grpmember':user_id_value, 'key':add_grpmember_key}
+                        r = requests.post(submissionURL, data=payload, auth=auth)
+                        print '{} has been added to group'.format(user_id_value)
+                    else:
+                        print ('Invalid user id, please try again, E.G hj1612')
+                    break
+            user_id_text = raw_input('Enter group member id or DONE when finished: ')
+
+    def get_file(self):
+        if (file_path == None):
+            create_cate_token()
+            file_path = 'cate_token.txt'
+        else:
+            file_path = str(sys.argv[1])
+
+        files = None
+        try:
+            files={'file-195-none': open(file_path, 'rb')}
+        except IOError:
+            print 'Fatal: IOError - file does not exist'
+            exit()
+
+        return files
+
+    def create_cate_token(self):
+        if (os.path.isdir('.git')):
+            call = subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt",
+                shell=True)
+        else:
+            print 'Fatal: Not a git repository (or any of the parent directories): .git'
+            exit()
+
+    def submit_file(self, submissionURL, files, auth):
+        submit_key = get_value_by_name('key').split(':')
+        submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
+        payload={'key':submit_key}
+        r = requests.post(submissionURL, files=files, data=payload, auth=auth)
+        
+        if 'NOT SUBMITTED' in r.text:
+            print 'File failed to upload, check extension or base name'
+        elif r.status_code == 200:
+            print 'Boom! You\'re done'
+        else:
+            print 'Something went wrong, try again or submit on CATE'
+        exit()
+
+    def submit_declaration(self, baseURL, auth):
+        payload = { 
+            'inLeader':get_value_by_name('inLeader'), 
+            'inMember':get_value_by_name('inMember'), 
+            'version':get_value_by_name('version'),
+            'key':get_value_by_name('key')
+        }
+        declartionURL = soup.find('form')['action']
+        return requests.post(baseURL + declartionURL, data=payload, auth=auth)
+
+    def get_value_by_name(self, name, extra_attrs={}):
+        attrs = {'name':name}.update(extra_attrs)
+        return soup.find('input', attrs=attrs)['value']
 
 def main():
 
-	#Username and password for auth
 	r = None
 	while r is None or r.status_code is not 200:
-		username = raw_input("Username: ")
-		password = getpass.getpass("Password: ")
+		username = raw_input('Username: ')
+		password = getpass.getpass('Password: ')
 	
-	
-
-	#Ask user what homework to hand in
-	selected_key = None
-	while selected_key is None or invalid_input(selected_key, len(handinURLs.keys())):
-		location = 0
-		print 'Which [assignment] would you like to hand in?'
-		for key in handinURLs.keys():
-			print '[' + str(location) + ']\t' + key
-			location += 1
-		selected_key = raw_input('Please select the number associated with the assignment\n')
-
-	#Handin assignment page
-	submissionURL = handinURLs[handinURLs.keys()[int(selected_key)]]
-	r = requests.get(submissionURL, auth=auth)
-	soup = BeautifulSoup(r.text)
-	files = None
-
-	if ('Group' in r.text):
-		if ('No declaration' in r.text):
-			print 'There is no declaration for your group'
-			print 'If you create one you will have to submit the work'
-			user_response = raw_input('Do you want to create one? [Y/n]: ')
-			if ('Y' in user_response):
-				r = submit_declaration(baseURL, auth)
-				soup = BeautifulSoup(r.text)
-				key = soup.find_all('input', attrs={'type':'hidden', 'name':'key'})[2]['value']
-
-				print 'Please add the people in your group'
-				user_id_text = raw_input('Enter group member\'s id or DONE when finished: ')
-				while ('DONE' not in user_id_text):
-					user_id_value = None
-					for user_id in soup.find_all('option'):
-						if user_id_text in user_id['value']:
-							user_id_value = user_id['value']
-							validation = raw_input('Is ' + user_id_value + ' correct? [Y/n]: ')
-							if ('Y' in validation):
-								payload = { 'grpmember':user_id_value, 'key':key}
-								r = requests.post(submissionURL, data=payload, auth=auth)
-								print user_id_value + ' has been added to group'
-							else:
-								print ('Invalid user id, please try again, E.G hj1612')
-							break
-					user_id_text = raw_input('Enter group member id or DONE when finished: ')
-
-				files = get_file()
-				soup = submit_file(submissionURL, files, auth)
-			else:
-				exit_message('Come back to sign the declaration once a group has been formed')
-		else:
-			user_details = soup.find('input', attrs={'type':'checkbox'})
-			payload = {
-				'key':soup.find('input', attrs={'type':'hidden'})['value'],
-				user_details['name']:user_details['value']
-			}
-			requests.post(submissionURL, data=payload, auth=auth)
-			exit_message('Your declaration has been submitted')
-	else:
-		r = submit_declaration(baseURL, auth)
-
-		files = get_file()
-		soup = submit_file(submissionURL, files, auth)
-
-	if soup.find(text='NOT SUBMITTED'):
-		exit_message('File failed to upload, check extension or base name')
-	elif r.status_code == 200:
-		exit_message('Boom! You\'re done')
-	else:
-		exit_message('Something went wrong, try again or submit on CATE')
-
-def exit_message(message):
-	print message
-	print 'Goodbye'
-	exit()
-
-def invalid_input(key, size):
-	try:
-		selected_key = int(key)
-		if selected_key >= size or selected_key < 0:
-			return True
-	except ValueError:
-			print 'Invalid input'
-			return True
-	return False
-
-def submit_file(submissionURL, files, auth):
-	submit_key = get_value('key').split(':')
-	submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
-	payload={'key':submit_key}
-	r = requests.post(submissionURL, files=files, data=payload, auth=auth)
-	return BeautifulSoup(r.text)
-
-def submit_declaration(baseURL, auth):
-	payload = { 
-		'inLeader':get_value_by_name('inLeader'), 
-		'inMember':get_value_by_name('inMember'), 
-		'version':get_value_by_name('version'),
-		'key':get_value_by_name('key')
-	}
-	declartionURL = soup.find('form')['action']
-	return requests.post(baseURL + declartionURL, data=payload, auth=auth)
-
-def get_value_by_name(name, extra_attrs={}):
-	attrs = {'name':name}.update(extra_attrs)
-	return soup.find('input', attrs=attrs)['value']
-
-def get_file():
-	#Checks to see if file given or to generate a cate_token
-	file_path = None
-	if (len(sys.argv) == 1):
-		if (os.path.isdir('.git')):
-			call = subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt",
-				shell=True)
-			file_path = 'cate_token.txt'
-		else:
-			exit_message('Fatal: Not a git repository (or any of the parent directories): .git')
-	else:
-		file_path = str(sys.argv[1])
-
-	files = None
-	try:
-		files={'file-195-none': open(file_path, 'rb')}
-	except IOError:
-		exit_message('Fatal: IOError - file does not exist')
-
-	return files
 
 if __name__=="__main__":
    main()
