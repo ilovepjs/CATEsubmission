@@ -8,29 +8,33 @@ from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 
 class CateSubmission:
-	def __init__(self, username, password, file_path):
-		self.baseURL = "https://cate.doc.ic.ac.uk/"
-		self.auth = HTTPBasicAuth(username, password)
+    def __init__(self, username, password, file_path):
+        self.baseURL = "https://cate.doc.ic.ac.uk/"
+        self.auth = HTTPBasicAuth(username, password)
         self.file_path = file_path
 
-	def get_enrolled_class(self):
-		r = requests.get(baseURL, auth=auth)
-		soup = BeautifulSoup(r.text)
+    # extracts timetable auth from cate page 
+    # returns necessary auth to get timetable
+    def get_enrolled_class(self):
+        r = requests.get(baseURL, auth=auth)
+        soup = BeautifulSoup(r.text)
 
-		timetable_key = get_value_by_name(soup, 'keyt')
-		timetable_class = get_value_by_name(soup, 'class', {'checked':True})
-		timetable_period = get_value_by_name(soup, 'period', {'checked':True})
+        timetable_key = get_value_by_name(soup, 'keyt')
+        timetable_class = get_value_by_name(soup, 'class', {'checked':True})
+        timetable_period = get_value_by_name(soup, 'period', {'checked':True})
 
-		return (timetable_key, timetable_class, timetable_period)
+        return (timetable_key, timetable_class, timetable_period)
 
-	def get_timetable(self, timetable_key, timetable_class, timetable_period):
+    # gets timetable page with assignments on it
+    # puts all assignments due in into a dict handin_urls
+    def get_assignments(self, timetable_key, timetable_class, timetable_period):
         payload = {
-            'keyt':timetable_key, 
-            'class':timetable_class, 
-            'period':timetable_period
+        'keyt':timetable_key, 
+        'class':timetable_class, 
+        'period':timetable_period
         }
 
-        r = requests.get(baseURL + 'timetable.cgi', auth=auth, params=payload)
+        r = requests.get(self.baseURL + 'timetable.cgi', auth=auth, params=payload)
         soup = BeautifulSoup(r.text)
 
         handin_urls = {}
@@ -39,36 +43,39 @@ class CateSubmission:
             handin_container = handin_link.parent
             handin_title = handin_container.text[2:]
 
-            handin_urls[handin_title] = handin_link['href']
+        handin_urls[handin_title] = handin_link['href']
 
+    # goes through the handin_urls and sees what homework needs to be handed in
+    # returns the url of the homework page
     def get_submission_url(self, handin_urls):
         print 'Which [assignment] would you like to hand in?'
-        for i, key in enumerate(handinURLs.keys()):
-                print '[{}]\t{}'.format(i, key)
-        
+        for i, key in enumerate(handin_urls.keys()):
+            print '[{}]\t{}'.format(i, key)
+
         invalid_key_chosen = True
+        selected_key = None
         while invalid_key_chosen:
-            selected_key = raw_input('Select the number of the assignment to submit\n')
+            selected_key = raw_input('Select the number of the assignment to submit: ')
             invalid_key_chosen = (selected_key > handinURLs.keys() or selected_key < 0)
 
-        return submission_url = handin_urls[handin_urls.keys()[int(selected_key)]]
+        return handin_urls[handin_urls.keys()[int(selected_key)]]
 
-
+    # gets the assignment hand in page
+    # submits the assigment (group or solo)
     def submit_assignment(self, submission_url):
         r = requests.get(submissionURL, auth=auth)
-
         if ('Group' in r.text):
             submit_group_assignment(submissionURL)
         else:
             submit_page = submit_declaration(baseURL, auth)
-
             files = get_file()
             submit_file(submissionURL, files, auth, submit_page)
 
+    # checks submission page to see if decleration exists
+    # if it does, signs it else creates one 
     def submit_group_assignment(self, submission_url):
         if ('No declaration' in r.text):
-            print 'There is no declaration for your group'
-            print 'If you create one you will have to submit the work'
+            print 'Do you want to create a group on CATE and submit the work'
             user_response = raw_input('Do you want to create one? [Y/n]: ')
             if ('Y' in user_response):
                 r = submit_declaration(baseURL, auth)
@@ -83,13 +90,14 @@ class CateSubmission:
         else:
             user_details = soup.find('input', attrs={'type':'checkbox'})
             payload = {
-                'key':get_value_by_name(soup, 'key', {'type':'hidden'})
-                user_details['name']:user_details['value']
+            'key':get_value_by_name(soup, 'key', {'type':'hidden'}),
+            user_details['name']:user_details['value']
             }
             requests.post(submissionURL, data=payload, auth=auth)
             print 'Your declaration has been submitted'
             exit()
 
+    # adds memebers to the group
     def add_members_to_group(self):
         add_grpmember_key = soup.find_all('input', attrs={'type':'hidden', 'name':'key'})[2]['value']
 
@@ -107,7 +115,7 @@ class CateSubmission:
                         print '{} has been added to group'.format(user_id_value)
                     else:
                         print ('Invalid user id, please try again, E.G hj1612')
-                    break
+                        break
             user_id_text = raw_input('Enter group member id or DONE when finished: ')
 
     def get_file(self):
@@ -117,7 +125,7 @@ class CateSubmission:
         else:
             file_path = str(sys.argv[1])
 
-        files = None
+            files = None
         try:
             files={'file-195-none': open(file_path, 'rb')}
         except IOError:
@@ -129,7 +137,7 @@ class CateSubmission:
     def create_cate_token(self):
         if (os.path.isdir('.git')):
             call = subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt",
-                shell=True)
+                    shell=True)
         else:
             print 'Fatal: Not a git repository (or any of the parent directories): .git'
             exit()
@@ -139,23 +147,24 @@ class CateSubmission:
         submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
         payload={'key':submit_key}
         r = requests.post(submissionURL, files=files, data=payload, auth=auth)
-        
+
         if 'NOT SUBMITTED' in r.text:
             print 'File failed to upload, check extension or base name'
         elif r.status_code == 200:
             print 'Boom! You\'re done'
         else:
             print 'Something went wrong, try again or submit on CATE'
-        exit()
+            exit()
 
     def submit_declaration(self, baseURL, auth):
         payload = { 
-            'inLeader':get_value_by_name('inLeader'), 
-            'inMember':get_value_by_name('inMember'), 
-            'version':get_value_by_name('version'),
-            'key':get_value_by_name('key')
+        'inLeader':get_value_by_name('inLeader'), 
+        'inMember':get_value_by_name('inMember'), 
+        'version':get_value_by_name('version'),
+        'key':get_value_by_name('key')
         }
         declartionURL = soup.find('form')['action']
+
         return requests.post(baseURL + declartionURL, data=payload, auth=auth)
 
     def get_value_by_name(self, name, extra_attrs={}):
@@ -163,12 +172,12 @@ class CateSubmission:
         return soup.find('input', attrs=attrs)['value']
 
 def main():
+    r = None
+    # while r is None or r.status_code is not 200:
+    username = raw_input('Username: ')
+    password = getpass.getpass('Password: ')
 
-	r = None
-	while r is None or r.status_code is not 200:
-		username = raw_input('Username: ')
-		password = getpass.getpass('Password: ')
-	
+    cate = CateSubmission(username, password, None)
 
 if __name__=="__main__":
-   main()
+    main()
