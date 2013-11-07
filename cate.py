@@ -1,6 +1,5 @@
 import requests
 import os 
-import bs4
 import getpass
 import subprocess
 import sys
@@ -9,7 +8,7 @@ from requests.auth import HTTPBasicAuth
 
 class CateSubmission:
     def __init__(self, username, password, file_path):
-        self.baseURL = "https://cate.doc.ic.ac.uk/"
+        self.baseURL = 'https://cate.doc.ic.ac.uk/'
         self.auth = HTTPBasicAuth(username, password)
         self.file_path = file_path
 
