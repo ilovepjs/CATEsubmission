@@ -135,7 +135,7 @@ class CateSubmission:
 
     def create_cate_token(self):
         if (os.path.isdir('.git')):
-            call = subprocess.call("git log | grep commit | head -n 1 | cut -c8- > cate_token.txt",
+            call = subprocess.call("git rev-parse HEAD > cate_token.txt",
                     shell=True)
         else:
             print 'Fatal: Not a git repository (or any of the parent directories): .git'
