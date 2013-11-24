@@ -11,7 +11,7 @@ When you select which assignment you want to hand in it will:
    
        For GitLab assignments:
 
-           #NOTE: Call the script from the folder with your git repository 
+           NOTE: Call the script from the folder with your git repository 
            - Grab your git token from your latest commit
            - Create the cate_token.txt file for you 
            
