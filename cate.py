@@ -15,12 +15,12 @@ class CateSubmission:
     # extracts timetable auth from cate page 
     # returns necessary auth to get timetable
     def get_enrolled_class(self):
-        r = requests.get(baseURL, auth=auth)
+        r = requests.get(self.baseURL, auth=self.auth)
         soup = BeautifulSoup(r.text)
 
-        timetable_key = get_value_by_name(soup, 'keyt')
-        timetable_class = get_value_by_name(soup, 'class', {'checked':True})
-        timetable_period = get_value_by_name(soup, 'period', {'checked':True})
+        timetable_key = self.get_value_by_name(soup, 'keyt')
+        timetable_class = self.get_value_by_name(soup, 'class', {'checked':True})
+        timetable_period = self.get_value_by_name(soup, 'period', {'checked':True})
 
         return (timetable_key, timetable_class, timetable_period)
 
@@ -33,7 +33,7 @@ class CateSubmission:
         'period':timetable_period
         }
 
-        r = requests.get(self.baseURL + 'timetable.cgi', auth=auth, params=payload)
+        r = requests.get(self.baseURL + 'timetable.cgi', auth=self.auth, params=payload)
         soup = BeautifulSoup(r.text)
 
         handin_urls = {}
@@ -43,6 +43,8 @@ class CateSubmission:
             handin_title = handin_container.text[2:]
 
         handin_urls[handin_title] = handin_link['href']
+
+        return handin_urls
 
     # goes through the handin_urls and sees what homework needs to be handed in
     # returns the url of the homework page
@@ -55,7 +57,7 @@ class CateSubmission:
         selected_key = None
         while invalid_key_chosen:
             selected_key = raw_input('Select the number of the assignment to submit: ')
-            invalid_key_chosen = (selected_key > handinURLs.keys() or selected_key < 0)
+            invalid_key_chosen = (selected_key > handin_urls.keys() or selected_key < 0)
 
         return handin_urls[handin_urls.keys()[int(selected_key)]]
 
@@ -66,9 +68,9 @@ class CateSubmission:
         if ('Group' in r.text):
             submit_group_assignment(submissionURL)
         else:
-            submit_page = submit_declaration(baseURL, auth)
-            files = get_file()
-            submit_file(submissionURL, files, auth, submit_page)
+            submit_page = _submit_declaration(baseURL, auth)
+            files = _get_file()
+            _submit_file(submissionURL, files, auth, submit_page)
 
     # checks submission page to see if decleration exists
     # if it does, signs it else creates one 
@@ -77,12 +79,12 @@ class CateSubmission:
             print 'Do you want to create a group on CATE and submit the work'
             user_response = raw_input('Do you want to create one? [Y/n]: ')
             if ('Y' in user_response):
-                r = submit_declaration(baseURL, auth)
+                r = _submit_declaration(baseURL, auth)
                 soup = BeautifulSoup(r.text)
 
-                add_members_to_group()
-                files = get_file()
-                submit_file(submissionURL, files, auth)
+                _add_members_to_group()
+                files = _get_file()
+                _submit_file(submissionURL, files, auth)
             else:
                 print 'Come back to sign the declaration once a group has been formed'
                 exit()
@@ -97,7 +99,7 @@ class CateSubmission:
             exit()
 
     # adds memebers to the group
-    def add_members_to_group(self):
+    def _add_members_to_group(self):
         add_grpmember_key = soup.find_all('input', attrs={'type':'hidden', 'name':'key'})[2]['value']
 
         print 'Add the people in your group'
@@ -117,9 +119,9 @@ class CateSubmission:
                         break
             user_id_text = raw_input('Enter group member id or DONE when finished: ')
 
-    def get_file(self):
+    def _get_file(self):
         if (file_path == None):
-            create_cate_token()
+            _create_cate_token()
             file_path = 'cate_token.txt'
         else:
             file_path = str(sys.argv[1])
@@ -133,7 +135,7 @@ class CateSubmission:
 
         return files
 
-    def create_cate_token(self):
+    def _create_cate_token(self):
         if (os.path.isdir('.git')):
             call = subprocess.call("git rev-parse HEAD > cate_token.txt",
                     shell=True)
@@ -141,7 +143,7 @@ class CateSubmission:
             print 'Fatal: Not a git repository (or any of the parent directories): .git'
             exit()
 
-    def submit_file(self, submissionURL, files, auth):
+    def _submit_file(self, submissionURL, files, auth):
         submit_key = get_value_by_name('key').split(':')
         submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
         payload={'key':submit_key}
@@ -155,7 +157,7 @@ class CateSubmission:
             print 'Something went wrong, try again or submit on CATE'
             exit()
 
-    def submit_declaration(self, baseURL, auth):
+    def _submit_declaration(self, baseURL, auth):
         payload = { 
         'inLeader':get_value_by_name('inLeader'), 
         'inMember':get_value_by_name('inMember'), 
@@ -166,7 +168,7 @@ class CateSubmission:
 
         return requests.post(baseURL + declartionURL, data=payload, auth=auth)
 
-    def get_value_by_name(self, name, extra_attrs={}):
+    def get_value_by_name(self, soup, name, extra_attrs={}):
         attrs = {'name':name}.update(extra_attrs)
         return soup.find('input', attrs=attrs)['value']
 
@@ -177,6 +179,15 @@ def main():
     password = getpass.getpass('Password: ')
 
     cate = CateSubmission(username, password, None)
+
+    timetable_key, timetable_class, timetable_period = cate.get_enrolled_class()
+    assignments = cate.get_assignments(timetable_key, timetable_class, timetable_period)
+
+
+    # def get_assignments(self, timetable_key, timetable_class, timetable_period):
+    # def get_submission_url(self, handin_urls):
+    # def submit_assignment(self, submission_url):
+    # def submit_group_assignment(self, submission_url):
 
 if __name__=="__main__":
     main()
