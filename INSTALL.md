@@ -3,4 +3,4 @@ CATEsubmission
 
 To install the necessary dependancies run:
 
-     pip install -r requirements.txt
+     sudo pip install -r requirements.txt
