@@ -1,28 +1,30 @@
-import requests
 import os 
 import getpass
 import subprocess
 import sys
-import requests.auth 
+import requests.auth
+import unittest 
 from bs4 import BeautifulSoup
+from requests.auth import HTTPBasicAuth
+from cate import CateSubmission
 
 class TestCateSubmission(unittest.TestCase):
 
-	def setUp(self):
-		self.baseURL = 'https://cate.doc.ic.ac.uk/'
-		username = raw_input('Username: ')
-		password = getpass.getpass('Password: ')
-		self.auth = HTTPBasicAuth(username, password)
-		cate = CateSubmission(username, password, None)
+	cate = CateSubmission(username, password, None)
 
-	def test_get_enrolled_class(self):
+	def test_login(self):
 		#checks to see if user login was success 
-		r = requests.get(baseURL, auth=auth)
-		self.assertEquals(r.status_code, 400)
+		r = requests.get(self.cate.baseURL, auth=self.cate.auth)
+		self.assertEquals(r.status_code, 200)
+		class_information = self.cate.get_enrolled_class()
+		print class_information
 
-		# #gets enrolled class details
-		# class_information = cate.get_enrolled_class()
-		# sel
+	# def test_get_enrolled_class(self):
+	# 	#gets enrolled class details
+	# 	r = requests.get(self.baseURL, auth=self.auth)
+		
+	# 	print class_information
+	# 	expected = 0
 
 if __name__ == '__main__':
 	unittest.main()

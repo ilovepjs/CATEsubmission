@@ -2,6 +2,7 @@ import requests
 import os 
 import getpass
 import subprocess
+import re
 import sys
 from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
@@ -19,8 +20,8 @@ class CateSubmission:
         soup = BeautifulSoup(r.text)
 
         timetable_key = self.get_value_by_name(soup, 'keyt')
-        timetable_class = self.get_value_by_name(soup, 'class', {'checked':True})
-        timetable_period = self.get_value_by_name(soup, 'period', {'checked':True})
+        timetable_class = self.get_v_by_name(soup, 'class', {'checked':True})
+        timetable_period = self.get_v_by_name(soup, 'period', {'checked':True})
 
         return (timetable_key, timetable_class, timetable_period)
 
@@ -170,6 +171,12 @@ class CateSubmission:
 
     def get_value_by_name(self, soup, name, extra_attrs={}):
         attrs = {'name':name}.update(extra_attrs)
+        print  attrs
+        return soup.find('input', attrs=attrs)['value']
+
+    def get_v_by_name(self, soup, name, extra_attrs):
+        attrs = extra_attrs
+        print  attrs
         return soup.find('input', attrs=attrs)['value']
 
 def main():
