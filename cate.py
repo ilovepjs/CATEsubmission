@@ -19,9 +19,9 @@ class CateSubmission:
         r = requests.get(self.baseURL, auth=self.auth)
         soup = BeautifulSoup(r.text)
 
-        timetable_key = self.get_value_by_name(soup, 'keyt')
-        timetable_class = self.get_v_by_name(soup, 'class', {'checked':True})
-        timetable_period = self.get_v_by_name(soup, 'period', {'checked':True})
+        timetable_key = self._get_value_by_name(soup, 'keyt')
+        timetable_class = self._get_value_by_name(soup, 'class', {'checked':True})
+        timetable_period = self._get_value_by_name(soup, 'period', {'checked':True})
 
         return (timetable_key, timetable_class, timetable_period)
 
@@ -92,7 +92,7 @@ class CateSubmission:
         else:
             user_details = soup.find('input', attrs={'type':'checkbox'})
             payload = {
-            'key':get_value_by_name(soup, 'key', {'type':'hidden'}),
+            'key':_get_value_by_name(soup, 'key', {'type':'hidden'}),
             user_details['name']:user_details['value']
             }
             requests.post(submissionURL, data=payload, auth=auth)
@@ -145,7 +145,7 @@ class CateSubmission:
             exit()
 
     def _submit_file(self, submissionURL, files, auth):
-        submit_key = get_value_by_name('key').split(':')
+        submit_key = _get_value_by_name('key').split(':')
         submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
         payload={'key':submit_key}
         r = requests.post(submissionURL, files=files, data=payload, auth=auth)
@@ -160,23 +160,18 @@ class CateSubmission:
 
     def _submit_declaration(self, baseURL, auth):
         payload = { 
-        'inLeader':get_value_by_name('inLeader'), 
-        'inMember':get_value_by_name('inMember'), 
-        'version':get_value_by_name('version'),
-        'key':get_value_by_name('key')
+        'inLeader':_get_value_by_name('inLeader'), 
+        'inMember':_get_value_by_name('inMember'), 
+        'version':_get_value_by_name('version'),
+        'key':_get_value_by_name('key')
         }
         declartionURL = soup.find('form')['action']
 
         return requests.post(baseURL + declartionURL, data=payload, auth=auth)
 
-    def get_value_by_name(self, soup, name, extra_attrs={}):
-        attrs = {'name':name}.update(extra_attrs)
-        print  attrs
-        return soup.find('input', attrs=attrs)['value']
-
-    def get_v_by_name(self, soup, name, extra_attrs):
-        attrs = extra_attrs
-        print  attrs
+    def _get_value_by_name(self, soup, name, extra_attrs={}):
+        attrs = {'name':name}
+        attrs.update(extra_attrs)
         return soup.find('input', attrs=attrs)['value']
 
 def main():
