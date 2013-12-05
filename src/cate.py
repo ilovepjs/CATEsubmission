@@ -13,37 +13,38 @@ class CateSubmission:
         self.auth = HTTPBasicAuth(username, password)
         self.file_path = file_path
 
-    # extracts timetable auth from cate page 
-    # returns necessary auth to get timetable
-    def get_enrolled_class(self):
+    def fetch_cate_homepage(self):
         r = requests.get(self.baseURL, auth=self.auth)
-        soup = BeautifulSoup(r.text)
+        return BeautifulSoup(r.text)
 
-        timetable_key = self._get_value_by_name(soup, 'keyt')
-        timetable_class = self._get_value_by_name(soup, 'class', {'checked':True})
-        timetable_period = self._get_value_by_name(soup, 'period', {'checked':True})
+    # extracts timetable auth from cate page 
+    # returns auth for timetable
+    def get_enrolled_class(self, cate_page):
+        timetable_key = self._get_value_by_name(cate_page, 'keyt')
+        timetable_class = self._get_value_by_name(cate_page, 'class', {'checked':True})
+        timetable_period = self._get_value_by_name(cate_page, 'period', {'checked':True})
 
         return (timetable_key, timetable_class, timetable_period)
 
-    # gets timetable page with assignments on it
-    # puts all assignments due in into a dict handin_urls
-    def get_assignments(self, timetable_key, timetable_class, timetable_period):
+    def fetch_timetable(self, timetable_key, timetable_class, timetable_period):
         payload = {
         'keyt':timetable_key, 
         'class':timetable_class, 
         'period':timetable_period
         }
-
+        
         r = requests.get(self.baseURL + 'timetable.cgi', auth=self.auth, params=payload)
-        soup = BeautifulSoup(r.text)
+        return BeautifulSoup(r.text)
 
+    # gets timetable page with assignments on it
+    # puts all assignments due in into a dict handin_urls
+    def get_assignments(self, timetable):
         handin_urls = {}
-        handin_links = soup.find_all(href=re.compile('handins'))
+        handin_links = timetable.find_all(href=re.compile('handins'))
         for handin_link in handin_links:
             handin_container = handin_link.parent
             handin_title = handin_container.text[2:]
-
-        handin_urls[handin_title] = handin_link['href']
+            handin_urls[handin_title] = handin_link['href']
 
         return handin_urls
 
@@ -182,8 +183,13 @@ def main():
 
     cate = CateSubmission(username, password, None)
 
-    timetable_key, timetable_class, timetable_period = cate.get_enrolled_class()
-    assignments = cate.get_assignments(timetable_key, timetable_class, timetable_period)
+    cate_page = cate.fetch_cate_homepage()
+    timetable_key, timetable_class, timetable_period = cate.get_enrolled_class(cate_page)
+
+    timetable = cate.fetch_timetable(timetable_key, timetable_class, timetable_period)
+    assignments = cate.get_assignments(timetable)
+    
+    cate.get_submission_url(assignments)
 
 
     # def get_assignments(self, timetable_key, timetable_class, timetable_period):
