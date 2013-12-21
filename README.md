@@ -2,24 +2,18 @@ CATEsubmission
 ==============
 
 Automates the process of submitting work via CATE. 
-
-Will present you with a list of all assignments that have pending submissions.
-
-When you select which assignment you want to hand in it will: 
+Shows a list of assignments that have pending submissions.
+Select which assignment you want to hand in and it will: 
   
-   - Submit your declaration
-   
-       For GitLab assignments:
-
-           NOTE: Call the script from the folder with your git repository 
-           - Grab your git token from your latest commit
-           - Create the cate_token.txt file for you 
-           
-       For all others:
-       
-           - Provide the file as a command line argument
-           
-   - Upload it to CATE
+   - Sign your declaration
+   - Add group members to group assignments
+   - Upload your files to CATE
    - Submit it for you
    
 Making handing in work easy :) 
+
+NOTE: 
+For GitLab assignments:
+	- Call the script from the folder with your git repository 
+For all other files:
+	- Provide the file as a command line argument
