@@ -13,7 +13,11 @@ Select which assignment you want to hand in and it will:
 Making handing in work easy :) 
 
 NOTE: 
+
 For GitLab assignments:
+
 	- Call the script from the folder with your git repository 
+
 For all other files:
+
 	- Provide the file as a command line argument
