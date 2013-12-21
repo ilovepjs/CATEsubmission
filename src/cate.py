@@ -125,28 +125,28 @@ class CateSubmission:
         self.students = dict((student.get_text(), student['value']) for student in list_of_students)
 
     def _get_files(self):
-        if (file_path == None):
+        files = None
+        if (os.path.isdir('.git')):
             _create_cate_token()
-            file_path = 'cate_token.txt'
-        else:
-            file_path = str(sys.argv[1])
+            _attach_file('cate_token.txt', files)
+        for arg in sys.argv[1:]
+            _attach_file(str(arg), files)
+        return files
 
-            files = None
+    def _attach_file(self, file_path, files):
         try:
-            files={'file-195-none': open(file_path, 'rb')}
+            # HERE ERROR - 195 NOT ALWAYS CORRECT  
+            files['file-195-none'] = open(file_path, 'rb')}
+            print '{} created'.format(file_path)
         except IOError:
-            print('Fatal: IOError - file does not exist')
+            print 'Fatal: IOError - file does not exist'
             exit()
 
         return files
 
     def _create_cate_token(self):
-        if (os.path.isdir('.git')):
-            call = subprocess.call("git rev-parse HEAD > cate_token.txt",
-                    shell=True)
-        else:
-            print('Fatal: Not a git repository (or any of the parent directories): .git')
-            exit()
+        call = subprocess.call("git rev-parse HEAD > cate_token.txt", shell=True)
+        print 'cate_token.txt created'
 
     def _submit_files(self, submission_url, files, auth):
         submit_key = _get_value_by_name('key').split(':')
