@@ -14,10 +14,4 @@ Making handing in work easy :)
 
 NOTE: 
 
-For GitLab assignments:
-
-	- Call the script from the folder with your git repository 
-
-For all other files:
-
-	- Provide the file as a command line argument
+For GitLab assignments call the script from the folder with your git repository. For all other files provide the file as a command line argument
