@@ -32,9 +32,9 @@ class CateSubmission:
     # extracts timetable auth from cate page
     # returns auth for timetable
     def get_enrolled_class(self, cate_page):
-        timetable_key = self._get_value_by_name(cate_page, 'keyt')
-        timetable_class = self._get_value_by_name(cate_page, 'class', {'checked':True})
-        timetable_period = self._get_value_by_name(cate_page, 'period', {'checked':True})
+        timetable_key = self._get_value_by_name('keyt', cate_page)
+        timetable_class = self._get_value_by_name('class', cate_page, {'checked':True})
+        timetable_period = self._get_value_by_name('period', cate_page, {'checked':True})
 
         return (timetable_key, timetable_class, timetable_period)
 
@@ -87,7 +87,7 @@ class CateSubmission:
                     submission_page = self._submit_declaration(submission_page)
                     self._add_members_to_group()
                     file_keys = self._get_file_keys(submission_page)
-                    self._submit_files(url, self._get_files(file_keys))
+                    self._submit_files(url, submission_page, self._get_files(file_keys))
                 else:
                     print 'Come back to sign the declaration once a group has been formed'
                     exit()
@@ -99,7 +99,7 @@ class CateSubmission:
             submission_page = self._submit_declaration(submission_page)
             self._get_file_keys(submission_page)
             file_keys = self._get_file_keys(submission_page)
-            self._submit_files(url, self._get_files(file_keys))
+            self._submit_files(url, submission_page, self._get_files(file_keys), self.auth)
 
     def _get_file_keys(self, submission_page):
         files = {}
@@ -114,7 +114,7 @@ class CateSubmission:
 
         files = collections.OrderedDict(sorted(files.items()))
         file_keys = {}
-        for i, file_key in enumerate(page.find_all(type='file')):
+        for i, file_key in enumerate(submission_page.find_all(type='file')):
             file_keys[file_key['name']] = files.keys()[i]
 
         return file_keys
@@ -123,7 +123,6 @@ class CateSubmission:
         files = {}
         for i, name in enumerate(file_keys.values()):
             for file_path in sys.argv[1:]: 
-                print 'is {} in {}'.format(name, file_path)
                 if name in file_path:
                     files[file_keys.keys()[i]] = self._attach_file(file_path)
         return files
@@ -169,11 +168,12 @@ class CateSubmission:
         subprocess.call("git rev-parse HEAD > cate_token.txt", shell=True)
         print 'cate_token.txt created'
 
-    def _submit_files(self, submission_url, files, auth):
-        submit_key = self._get_value_by_name('key').split(':')
+    def _submit_files(self, submission_url, submission_page, files, auth):
+        submit_key = self._get_value_by_name('key', submission_page).split(':')
         submit_key = ':'.join(submit_key[:4] + ['submit',] + submit_key[5:])
         payload={'key':submit_key}
-        r = requests.post(submission_url, files=files, data=payload, auth=auth)
+
+        r = requests.post(self.base_url + submission_url, files=files, data=payload, auth=auth)
 
         if 'NOT SUBMITTED' in r.text:
             print 'Files failed to upload, check extension or base name'
@@ -185,17 +185,20 @@ class CateSubmission:
             exit()
 
     def _submit_declaration(self, submission_page):
+        submission_page = BeautifulSoup(submission_page)
+
         payload = {
-            'inLeader': self._get_value_by_name('inLeader'),
-            'inMember': self._get_value_by_name('inMember'),
-            'version': self._get_value_by_name('version'),
-            'key': self._get_value_by_name('key')
+            'inLeader': self._get_value_by_name('inLeader', submission_page),
+            'inMember': self._get_value_by_name('inMember', submission_page),
+            'version': self._get_value_by_name('version', submission_page),
+            'key': self._get_value_by_name('key', submission_page)
         }
         declartion_url = submission_page.find('form')['action']
 
-        return BeautifulSoup(requests.post(self.base_url + declartion_url, data=payload, auth=self.auth))
+        r = requests.post(self.base_url + declartion_url, data=payload, auth=self.auth)
+        return BeautifulSoup(r.text)
 
-    def _get_value_by_name(self, soup, name, extra_attrs={}):
+    def _get_value_by_name(self, name, soup, extra_attrs={}):
         attrs = {'name': name}
         attrs.update(extra_attrs)
         return soup.find('input', attrs=attrs)['value']
