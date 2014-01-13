@@ -85,9 +85,9 @@ class CateSubmission:
                 user_response = raw_input('Do you want to create one? [Y/n]: ')
                 if 'Y' in user_response:
                     submission_page = self._submit_declaration(submission_page)
-                    self._add_members_to_group()
+                    self._add_members_to_group(submission_page, url)
                     file_keys = self._get_file_keys(submission_page)
-                    self._submit_files(url, submission_page, self._get_files(file_keys))
+                    self._submit_files(url, submission_page, self._get_files(file_keys), self.auth)
                 else:
                     print 'Come back to sign the declaration once a group has been formed'
                     exit()
@@ -138,7 +138,10 @@ class CateSubmission:
         return f
 
     # adds memebers to the group
-    def _add_members_to_group(self, submission_page):
+    def _add_members_to_group(self, submission_page, submission_url):
+        attrs = {'type':'hidden', 'name':'key'}
+        grpmember_key = submission_page.find_all('input', attrs=attrs)[2]['value']
+
         self._init_students(submission_page)
         readline.set_completer(self._completer)
         readline.set_completer_delims('')
@@ -148,6 +151,8 @@ class CateSubmission:
         while 'DONE' not in student_name:
             if student_name in self.students.keys():
                 student = self.students[student_name]
+                payload = { 'grpmember':student, 'key':grpmember_key}
+                r = requests.post(self.base_url + submission_url, data=payload, auth=self.auth)
                 print '{} has been added to group'.format(student)
             else:
                 print 'Enter Surname, Firstname.    E.G Joshi, Preeya (hj1612) - c2-0'
