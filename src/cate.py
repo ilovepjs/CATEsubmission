@@ -29,8 +29,8 @@ class CateSubmission:
         r = requests.get(self.base_url, auth=self.auth)
         return BeautifulSoup(r.text)
 
-    # extracts timetable auth from cate page
-    # returns auth for timetable
+    # extracts timetable key, class and period
+    # needed to go to the correct term page
     def get_enrolled_class(self, cate_page):
         timetable_key = self._get_value_by_name('keyt', cate_page)
         timetable_class = self._get_value_by_name('class', cate_page, {'checked':True})
@@ -68,9 +68,10 @@ class CateSubmission:
 
         invalid_key_selected = True
         selected_key = None
+
         while invalid_key_selected:
             selected_key = int(raw_input('Select the number of the assignment to submit: '))
-            invalid_key_selected = selected_key > len(handin_urls) or selected_key < 0
+            invalid_key_selected = selected_key > len(handin_urls) or selected_key <= 0
 
         return handin_urls[handin_urls.keys()[int(selected_key)]]
 
@@ -81,7 +82,7 @@ class CateSubmission:
     def submit_assignment(self, submission_page, url):
         if 'Group' in submission_page:
             if 'No declaration' in submission_page:
-                print 'Do you want to create a group on CATE and submit the work'
+                print 'Do you want to create a group and submit the work?'
                 user_response = raw_input('Do you want to create one? [Y/n]: ')
                 if 'Y' in user_response:
                     submission_page = self._submit_declaration(submission_page)
@@ -89,7 +90,7 @@ class CateSubmission:
                     file_keys = self._get_file_keys(submission_page)
                     self._submit_files(url, submission_page, self._get_files(file_keys), self.auth)
                 else:
-                    print 'Come back to sign the declaration once a group has been formed'
+                    print 'Come back to sign the declaration later then!'
                     exit()
             else:
                 self._submit_declaration(submission_page)
@@ -166,8 +167,8 @@ class CateSubmission:
             return None
 
     def _init_students(self, submission_page):
-        list_of_students = submission_page.find_all('option')
-        self.students = dict((student.get_text(), student['value']) for student in list_of_students)
+        students = submission_page.find_all('option')
+        self.students = dict((s.get_text(), s['value']) for s in students)
 
     def _create_cate_token(self):
         subprocess.call("git rev-parse HEAD > cate_token.txt", shell=True)
@@ -204,6 +205,7 @@ class CateSubmission:
         return BeautifulSoup(r.text)
 
     def _get_value_by_name(self, name, soup, extra_attrs={}):
+
         attrs = {'name': name}
         attrs.update(extra_attrs)
         return soup.find('input', attrs=attrs)['value']
